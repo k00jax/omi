@@ -1,0 +1,5 @@
+bleak==0.20.2
+websockets==11.0.3
+requests
+python-dotenv
+deepgram-sdk

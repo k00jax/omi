@@ -2,7 +2,7 @@ import websockets
 import json
 import asyncio
 
-async def transcribe(audio_queue, api_key):
+async def transcribe(audio_queue, api_key, on_transcript=None):
     url = "wss://api.deepgram.com/v1/listen?punctuate=true&model=nova&language=en-US&encoding=linear16&sample_rate=16000&channels=1"
     headers = {
         "Authorization": f"Token {api_key}"
@@ -35,7 +35,15 @@ async def transcribe(audio_queue, api_key):
                                 if "channel" in response and "alternatives" in response["channel"]:
                                     transcript = response["channel"]["alternatives"][0].get("transcript", "")
                                     if transcript and transcript.strip():
-                                        print("\nTranscript:", transcript.strip())
+                                        transcript = transcript.strip()
+                                        print("\nTranscript:", transcript)
+
+                                        if on_transcript:
+                                            try:
+                                                await on_transcript(transcript)
+                                            except Exception as e:
+                                                print(f"on_transcript error: {e}")
+
                             except json.JSONDecodeError as e:
                                 print(f"Error decoding response: {e}")
                             except Exception as e:
