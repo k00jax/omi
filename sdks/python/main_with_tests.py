@@ -1,15 +1,21 @@
+#!/usr/bin/env python3
+"""
+Enhanced main.py that works with both real audio and includes transcript testing
+This version will show you transcripts while we work on the Opus decoder
+"""
+
 import asyncio
 import os
-import ctypes
 import sys
+import ctypes
+from transcript_ui import TranscriptWindow
+from memory import init_memory_storage, process_transcript_for_memory, cleanup_memory_storage
+from env_config import setup_environment
 from omi.bluetooth import listen_to_omi
 from omi.transcribe import transcribe
 from omi.decoder import OmiOpusDecoder
-from asyncio import Queue
-from memory import init_memory_storage, process_transcript_for_memory, cleanup_memory_storage
-from env_config import setup_environment
-from transcript_ui import TranscriptWindow
 
+# Configuration
 OMI_CHAR_UUID = "19B10001-E8F2-537E-4F6C-D104768A1214"
 
 # Force-load libopus from local directory if available
@@ -34,7 +40,7 @@ def main():
         print("❌ OMI_MAC is required but not set in .env file.")
         print("💡 Please add OMI_MAC=your_device_mac_address to your .env file")
         return
-    
+
     api_key = os.getenv("DEEPGRAM_API_KEY")
     if not api_key:
         print("❌ DEEPGRAM_API_KEY is required but not set.")
@@ -43,23 +49,27 @@ def main():
 
     print(f"🎧 Using Omi device: {OMI_MAC}")
 
-    # Initialize the transcript UI window
+    # Initialize components
     print("🖥️ Starting transcript UI window...")
     ui = TranscriptWindow()
     ui.update_status("🔄 Initializing Omi connection...")
 
     # Initialize memory storage
-    omi_api_key = os.getenv("OMI_API_KEY")
-    if omi_api_key:
+    omi_key = os.getenv("OMI_API_KEY")
+    user_id = os.getenv("USER_ID", "default_user")
+    
+    try:
         print("🧠 Initializing memory storage with MCP...")
-        ui.update_status("🧠 Initializing memory storage with MCP...")
-        init_memory_storage(omi_api_key, user_id=os.getenv("OMI_USER_ID", "default_user"))
-    else:
-        print("⚠️  OMI_API_KEY not set. Memory storage will use local fallback only.")
-        ui.update_status("⚠️ Using local memory storage...")
-        init_memory_storage("dummy_key", user_id="default_user")  # Will fallback to local storage
+        init_memory_storage(omi_key, user_id=user_id)
+        ui.update_status("🧠 Memory storage initialized with MCP")
+    except Exception as e:
+        print(f"⚠️  MCP initialization failed: {e}")
+        print("⚠️  Using local memory storage...")
+        init_memory_storage("local_fallback", user_id=user_id)
+        ui.update_status("⚠️  Using local memory storage...")
 
-    audio_queue = Queue()
+    # Audio processing components
+    audio_queue = asyncio.Queue()
     decoder = OmiOpusDecoder()
 
     def handle_ble_data(sender, data):
@@ -67,15 +77,15 @@ def main():
         if decoded_pcm:
             try:
                 audio_queue.put_nowait(decoded_pcm)
-                # Track audio activity (minimal logging)
+                # Only show audio activity occasionally to avoid spam
                 if hasattr(handle_ble_data, 'counter'):
                     handle_ble_data.counter += 1
                 else:
                     handle_ble_data.counter = 1
                 
-                # Only log every 500th packet (much less verbose)
-                if handle_ble_data.counter % 500 == 0:
-                    print(f"🎤 Audio: {handle_ble_data.counter} packets processed")
+                if handle_ble_data.counter % 50 == 0:  # Show every 50th packet
+                    non_zero_bytes = sum(1 for b in decoded_pcm if b != 0)
+                    print(f"🎤 Audio flowing: packet #{handle_ble_data.counter}, {non_zero_bytes} non-zero bytes")
             except Exception as e:
                 print("Queue Error:", e)
 
@@ -92,35 +102,26 @@ def main():
             print("📌 Memory created successfully!")
             ui.update_memory(category, transcript)
     
-    # Add demo transcripts to show the system working while the decoder is being fixed
-    async def demo_transcript_injection():
-        """Inject demo transcripts every 20 seconds to show the UI working"""
-        demo_transcripts = [
-            "System is processing audio from Omi device successfully",
-            "Remember to check the Opus decoder configuration",  # Will create memory
-            "Audio data is flowing perfectly to Deepgram", 
-            "Note that the fallback decoder needs improvement",  # Will create memory
-            "All connections are working - Bluetooth and Deepgram are active",
-            "The transcript UI system is fully operational"
+    # Test transcript injection for demo purposes
+    async def inject_test_transcripts():
+        """Inject some test transcripts to show the system working while audio decoding is fixed"""
+        test_phrases = [
+            "Testing the transcript system",
+            "Remember to check the audio decoder",
+            "The system is processing audio data correctly",
+            "Note that we need to fix the Opus decoder",
         ]
         
-        transcript_index = 0
-        await asyncio.sleep(5)  # Wait for system to start (reduced from 15 to 5 seconds)
+        await asyncio.sleep(10)  # Wait a bit for system to start
         
-        while ui.is_running():
-            if transcript_index < len(demo_transcripts):
-                demo_text = f"[DEMO] {demo_transcripts[transcript_index]}"
-                print(f"💡 Demo transcript: {demo_text}")
-                await on_transcript(demo_text)
-                transcript_index += 1
-            else:
-                # Reset and continue with new demo transcripts
-                transcript_index = 0
-                await asyncio.sleep(30)  # Wait shorter between cycles
-                continue
+        for i, phrase in enumerate(test_phrases):
+            if not ui.is_running():
+                break
                 
-            await asyncio.sleep(10)  # Wait 10 seconds between demo transcripts (reduced from 20)
-
+            await asyncio.sleep(15)  # Wait between test phrases
+            print(f"🧪 Injecting test transcript {i+1}: {phrase}")
+            await on_transcript(f"[TEST] {phrase}")
+    
     async def run():
         try:
             ui.update_status("🔵 Connecting to Omi device...")
@@ -128,7 +129,9 @@ def main():
             # Create tasks for the main operations
             omi_task = asyncio.create_task(listen_to_omi(OMI_MAC, OMI_CHAR_UUID, handle_ble_data, ui.update_status))
             transcribe_task = asyncio.create_task(transcribe(audio_queue, api_key, on_transcript, ui.update_status))
-            demo_task = asyncio.create_task(demo_transcript_injection())
+            
+            # Add test transcript injection
+            test_task = asyncio.create_task(inject_test_transcripts())
             
             # Monitor if UI window is closed
             async def monitor_ui():
@@ -137,7 +140,7 @@ def main():
                 print("🖥️ UI window closed, stopping...")
                 omi_task.cancel()
                 transcribe_task.cancel()
-                demo_task.cancel()
+                test_task.cancel()
             
             ui_monitor = asyncio.create_task(monitor_ui())
             
@@ -145,7 +148,7 @@ def main():
             await asyncio.gather(
                 omi_task,
                 transcribe_task,
-                demo_task,
+                test_task,
                 ui_monitor,
                 return_exceptions=True
             )
@@ -162,7 +165,8 @@ def main():
             ui.update_status("🧹 Cleaning up...")
             await cleanup_memory_storage()
 
+    # Run the main loop
     asyncio.run(run())
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

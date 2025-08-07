@@ -217,7 +217,7 @@ def detect_hot_phrase(transcript: str) -> Optional[str]:
     return None
 
 
-async def process_transcript_for_memory(transcript: str, metadata: Optional[Dict[str, Any]] = None) -> bool:
+async def process_transcript_for_memory(transcript: str, metadata: Optional[Dict[str, Any]] = None) -> tuple[bool, Optional[str]]:
     """
     Process transcript for hot phrases and create memory if detected
     
@@ -226,12 +226,13 @@ async def process_transcript_for_memory(transcript: str, metadata: Optional[Dict
         metadata: Optional metadata to include with memory
         
     Returns:
-        bool: True if memory was created, False otherwise
+        tuple[bool, Optional[str]]: (True if memory was created, category if detected)
     """
     category = detect_hot_phrase(transcript)
     
     if category:
         print(f"🔥 Hot phrase detected! Category: {category}")
-        return await create_memory(transcript, category, metadata)
+        success = await create_memory(transcript, category, metadata)
+        return success, category
     
-    return False
+    return False, None

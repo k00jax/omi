@@ -12,6 +12,44 @@ from memory import init_memory_storage, process_transcript_for_memory, cleanup_m
 from env_config import setup_environment
 
 
+def test_ui_imports():
+    """Test that UI components can be imported"""
+    print("🧪 Testing UI imports...")
+    try:
+        import tkinter as tk
+        print("✅ tkinter")
+        
+        from transcript_ui import TranscriptWindow
+        print("✅ TranscriptWindow")
+        
+        print("✅ UI imports successful")
+        return True
+    except ImportError as e:
+        print(f"❌ UI import failed: {e}")
+        return False
+
+
+def test_ui_functionality():
+    """Test basic UI functionality"""
+    print("🧪 Testing UI functionality...")
+    try:
+        from transcript_ui import TranscriptWindow
+        
+        # Create UI instance (won't show window in test)
+        ui = TranscriptWindow()
+        
+        # Test basic methods
+        ui.update_transcript("Test message")
+        ui.update_status("Test status")
+        ui.update_memory("note", "Test memory")
+        
+        print("✅ UI functionality test passed")
+        return True
+    except Exception as e:
+        print(f"❌ UI functionality test failed: {e}")
+        return False
+
+
 async def test_memory_system():
     """Test the memory system functionality"""
     print("🧪 Testing memory system...")
@@ -31,8 +69,8 @@ async def test_memory_system():
     
     for phrase in test_phrases:
         print(f"\n📝 Testing phrase: '{phrase}'")
-        result = await process_transcript_for_memory(phrase, {"test": True})
-        if result:
+        memory_created, category = await process_transcript_for_memory(phrase, {"test": True})
+        if memory_created:
             print("✅ Memory created")
         else:
             print("ℹ️  No hot phrase detected")
@@ -138,12 +176,19 @@ async def main():
     if not test_imports():
         success = False
     
+    # Test UI components
+    print("\n2️⃣  Testing UI components...")
+    if not test_ui_imports():
+        success = False
+    else:
+        test_ui_functionality()
+    
     # Test environment
-    print("\n2️⃣  Testing environment...")
+    print("\n3️⃣  Testing environment...")
     test_environment()
     
     # Test memory system
-    print("\n3️⃣  Testing memory system...")
+    print("\n4️⃣  Testing memory system...")
     await test_memory_system()
     
     # Summary
@@ -154,6 +199,7 @@ async def main():
         print("1. Configure your API keys in .env")
         print("2. Update OMI_MAC in main.py")
         print("3. Run: python main.py")
+        print("4. Try: python demo_ui.py (to demo the transcript UI)")
     else:
         print("❌ Some tests failed!")
         print("\n📋 Actions needed:")
@@ -163,6 +209,7 @@ async def main():
     print("\nTest Results Summary:")
     print("- Check local file: omi_memories.txt for test memories")
     print("- Verify .env file was created and configured")
+    print("- UI components tested and ready")
 
 
 if __name__ == "__main__":

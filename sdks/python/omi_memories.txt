@@ -103,3 +103,45 @@ Category: todo
 Text: Add this to my todo list
 Metadata: {'test': True}
 --- End Entry ---
+
+--- Memory Entry ---
+Timestamp: 2025-08-07T15:00:36.467870
+Category: note
+Text: Hey, note this important information
+Metadata: {'test': True}
+--- End Entry ---
+
+--- Memory Entry ---
+Timestamp: 2025-08-07T15:00:36.545597
+Category: note
+Text: Remember this for later
+Metadata: {'test': True}
+--- End Entry ---
+
+--- Memory Entry ---
+Timestamp: 2025-08-07T15:00:36.549213
+Category: idea
+Text: I have an idea about the project
+Metadata: {'test': True}
+--- End Entry ---
+
+--- Memory Entry ---
+Timestamp: 2025-08-07T15:00:36.552136
+Category: important
+Text: This is important to remember
+Metadata: {'test': True}
+--- End Entry ---
+
+--- Memory Entry ---
+Timestamp: 2025-08-07T15:00:36.555263
+Category: todo
+Text: Add this to my todo list
+Metadata: {'test': True}
+--- End Entry ---
+
+--- Memory Entry ---
+Timestamp: 2025-08-07T15:34:09.293201
+Category: important
+Text: Note that this is an important meeting
+Metadata: {'demo': True}
+--- End Entry ---
