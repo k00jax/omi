@@ -85,42 +85,21 @@ def main():
         # Update the UI window with new transcript
         ui.update_transcript(transcript)
 
-        # Process transcript for hot phrases and create memory
-        memory_created, category = await process_transcript_for_memory(transcript)
+        # Process transcript for hot phrases and commands
+        print(f"🔍 Processing transcript: '{transcript}'")  # Debug output
+        action_taken, result = await process_transcript_for_memory(transcript)
+        print(f"🔍 Action taken: {action_taken}, Result: {result}")  # Debug output
         
-        if memory_created and category:
-            print("📌 Memory created successfully!")
-            ui.update_memory(category, transcript)
-    
-    # Add demo transcripts to show the system working while the decoder is being fixed
-    async def demo_transcript_injection():
-        """Inject demo transcripts every 20 seconds to show the UI working"""
-        demo_transcripts = [
-            "System is processing audio from Omi device successfully",
-            "Remember to check the Opus decoder configuration",  # Will create memory
-            "Audio data is flowing perfectly to Deepgram", 
-            "Note that the fallback decoder needs improvement",  # Will create memory
-            "All connections are working - Bluetooth and Deepgram are active",
-            "The transcript UI system is fully operational"
-        ]
-        
-        transcript_index = 0
-        await asyncio.sleep(5)  # Wait for system to start (reduced from 15 to 5 seconds)
-        
-        while ui.is_running():
-            if transcript_index < len(demo_transcripts):
-                demo_text = f"[DEMO] {demo_transcripts[transcript_index]}"
-                print(f"💡 Demo transcript: {demo_text}")
-                await on_transcript(demo_text)
-                transcript_index += 1
+        if action_taken and result:
+            if result.startswith("command:"):
+                # Command was executed
+                print("🎯 Command executed successfully!")
+                ui.update_status(f"✅ {result[8:]}")  # Remove "command: " prefix
             else:
-                # Reset and continue with new demo transcripts
-                transcript_index = 0
-                await asyncio.sleep(30)  # Wait shorter between cycles
-                continue
-                
-            await asyncio.sleep(10)  # Wait 10 seconds between demo transcripts (reduced from 20)
-
+                # Memory was created
+                print("📌 Memory created successfully!")
+                ui.update_memory(result, transcript)
+    
     async def run():
         try:
             ui.update_status("🔵 Connecting to Omi device...")
@@ -128,7 +107,6 @@ def main():
             # Create tasks for the main operations
             omi_task = asyncio.create_task(listen_to_omi(OMI_MAC, OMI_CHAR_UUID, handle_ble_data, ui.update_status))
             transcribe_task = asyncio.create_task(transcribe(audio_queue, api_key, on_transcript, ui.update_status))
-            demo_task = asyncio.create_task(demo_transcript_injection())
             
             # Monitor if UI window is closed
             async def monitor_ui():
@@ -137,7 +115,6 @@ def main():
                 print("🖥️ UI window closed, stopping...")
                 omi_task.cancel()
                 transcribe_task.cancel()
-                demo_task.cancel()
             
             ui_monitor = asyncio.create_task(monitor_ui())
             
@@ -145,7 +122,6 @@ def main():
             await asyncio.gather(
                 omi_task,
                 transcribe_task,
-                demo_task,
                 ui_monitor,
                 return_exceptions=True
             )
